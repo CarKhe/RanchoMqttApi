@@ -1,7 +1,12 @@
+using Microsoft.EntityFrameworkCore;
 using RanchoMqttApi;
 using RanchoMqttApi.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddDbContext<DBContext>(options =>
+    options.UseNpgsql(connectionString));
 
 //Agregando SignalR para envio de datos al front sin la necesidad de una solicitud
 builder.Services.AddSignalR();
