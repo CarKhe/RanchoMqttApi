@@ -5,6 +5,7 @@ namespace RanchoMqttApi.Workers;
 
 public class MqttWorker : BackgroundService
 {
+    public record EstadoRele(string estado, bool exito);
     private readonly MqttClientFactory _mqttFactory = new();
     private readonly IHubContext<RelesHub> _hubContext;
 
@@ -32,9 +33,13 @@ public class MqttWorker : BackgroundService
                 var tipo = partes[2];
                 var id = partes[3];
                 Console.WriteLine($"[API recibió estado] {tipo} {id} -> {payload}");
+                var datos = System.Text.Json.JsonSerializer.Deserialize<EstadoRele>(payload);
+                if (datos!.exito)
+                        Console.WriteLine($"[API] {tipo} {id} confirmado: {datos.estado}");
+                    else
+                        Console.WriteLine($"[API] {tipo} {id} FALLO, no cambió");
 
-                //Envio desde el hub
-                await _hubContext.Clients.All.SendAsync("EstadoActualizado", tipo, id, payload);
+                    await _hubContext.Clients.All.SendAsync("EstadoActualizado", tipo, id, datos.estado, datos.exito);
             }
             else if (topic == "rancho/temp")
             {
@@ -54,3 +59,4 @@ public class MqttWorker : BackgroundService
         Console.WriteLine("API suscrita a rancho/temp y rancho/reles/+/+/estado");
     }
 }
+

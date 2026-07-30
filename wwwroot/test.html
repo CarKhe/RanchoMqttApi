@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Prueba SignalR - RanchoMqttApi</title>
+</head>
+<body>
+<h1>Prueba del Hub RelesHub</h1>
+<p>Estado de conexion: <span id="estadoConexion">conectando...</span></p>
+<div id="log" style="font-family: monospace;"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+<script>
+  const connection = new signalR.HubConnectionBuilder()
+    .withUrl("/hubs/reles")
+    .withAutomaticReconnect()
+    .build();
+
+  connection.on("EstadoActualizado", (tipo, id, estado, exito) => {
+    const linea = document.createElement("p");
+    linea.textContent = new Date().toLocaleTimeString() + " -> tipo: " + tipo + ", id: " + id + ", estado: " + estado + ", exito: " + exito;
+    document.getElementById("log").prepend(linea);
+  });
+
+  connection.start()
+    .then(() => { document.getElementById("estadoConexion").textContent = "conectado"; })
+    .catch(err => { document.getElementById("estadoConexion").textContent = "error: " + err; });
+</script>
+</body>
+</html>

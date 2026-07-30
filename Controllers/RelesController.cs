@@ -22,7 +22,11 @@ namespace MyApp.Namespace
         public async Task<IActionResult> Cambiar(string tipo, int id, [FromQuery] bool estado)
         {
             var (exito, mensaje) = await _releService.CambiarEstadoAsync(tipo, id, estado);
-            return exito ? Ok(new { mensaje }) : BadRequest(new { mensaje });
+            if (!exito)
+            {
+                return BadRequest(new { mensaje });
+            }
+            return Accepted(new { mensaje = "Comando enviado, esperando confirmación del dispositivo" });
         }
     }
 }
