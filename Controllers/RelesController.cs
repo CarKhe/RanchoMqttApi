@@ -10,12 +10,21 @@ namespace MyApp.Namespace
     {
         private readonly IMqttPublisherService _mqttPublisher;
         private readonly IReleService _releService;
+        private readonly IReleCacheService _cache;
         private static readonly string[] TiposValidos = { "riego", "focos" };
 
-        public RelesController(IMqttPublisherService mqttPublisher, IReleService releService)
+        public RelesController(IMqttPublisherService mqttPublisher, IReleService releService, IReleCacheService cache)
         {
             _mqttPublisher = mqttPublisher;
             _releService   =   releService;
+            _cache         =         cache;
+        }
+
+        [HttpGet("estados")]
+        public IActionResult ObtenerEstados()
+        {
+            var estados = _cache.ObtenerTodos().Values;
+            return Ok(estados);
         }
 
         [HttpPatch("{tipo}/{id}/cambiar")]

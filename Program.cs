@@ -11,6 +11,7 @@ builder.Services.AddHostedService<MqttWorker>();
 //Interfaces
 builder.Services.AddSingleton<IMqttPublisherService, MqttPublisherService>();
 builder.Services.AddSingleton<IReleService,ReleService>();
+builder.Services.AddSingleton<IReleCacheService, ReleCacheService>();
 
 builder.Services.AddControllers();
 builder.Services.AddSwaggerGen();
