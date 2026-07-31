@@ -1,12 +1,22 @@
 using Microsoft.EntityFrameworkCore;
 using RanchoMqttApi;
 using RanchoMqttApi.Workers;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
+//Connection SQL
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<DBContext>(options =>
     options.UseNpgsql(connectionString));
+
+//SerialLog
+builder.Host.UseSerilog((context, config) =>
+{
+    config
+        .WriteTo.Console()
+        .WriteTo.File("Logs/rancho-.log", rollingInterval: RollingInterval.Day);
+});
 
 //Agregando SignalR para envio de datos al front sin la necesidad de una solicitud
 builder.Services.AddSignalR();

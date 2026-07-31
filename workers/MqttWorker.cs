@@ -9,11 +9,14 @@ public class MqttWorker : BackgroundService
     private readonly MqttClientFactory _mqttFactory = new();
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IHubContext<RelesHub> _hubContext;
+    private readonly ILogger<MqttWorker> _logger;
 
-    public MqttWorker(IServiceScopeFactory scopeFactory, IHubContext<RelesHub> hubContext) 
+    public MqttWorker(IServiceScopeFactory scopeFactory, 
+        IHubContext<RelesHub> hubContext,ILogger<MqttWorker> logger) 
     {
         _scopeFactory = scopeFactory;
-        _hubContext   =  hubContext;
+        _hubContext   =   hubContext;
+        _logger       =       logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -64,10 +67,10 @@ public class MqttWorker : BackgroundService
                 try
                 {
                     await mqttClient.ConnectAsync(options, stoppingToken);
-                    Console.WriteLine("API conectada al broker MQTT");
+                    _logger.LogInformation("API conectada al broker MQTT");
 
                     var subscribeOptions = _mqttFactory.CreateSubscribeOptionsBuilder()
-                        .WithTopicFilter(f => f.WithTopic(MqttTopics.Temperatura))
+                        .WithTopicFilter(f => f.WithTopic(MqttTopics.SensorLecturaWildcard))
                         .WithTopicFilter(f => f.WithTopic(MqttTopics.ReleEstadoWildcard))
                         .WithTopicFilter(f => f.WithTopic(MqttTopics.Conexion))
                         .Build();
@@ -79,7 +82,7 @@ public class MqttWorker : BackgroundService
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"No se pudo conectar/suscribir: {ex.Message}. Reintentando en 5 segundos...");
+                    _logger.LogWarning(ex, "No se pudo conectar/suscribir. Reintentando en 5 segundos...");
                     await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
                 }
             }
