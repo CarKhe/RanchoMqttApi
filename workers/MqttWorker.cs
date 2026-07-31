@@ -6,6 +6,7 @@ namespace RanchoMqttApi.Workers;
 
 public class MqttWorker : BackgroundService
 {
+    private readonly SemaphoreSlim _reconectando = new(1, 1);
     private readonly MqttClientFactory _mqttFactory = new();
     private readonly IServiceScopeFactory _scopeFactory;
 
@@ -39,17 +40,50 @@ public class MqttWorker : BackgroundService
 
         };
 
-        await mqttClient.ConnectAsync(options, stoppingToken);
-        Console.WriteLine("API conectada al broker MQTT");
+        // NUEVO: si la conexión se cae despues de haber funcionado, reintenta sola
+        mqttClient.DisconnectedAsync += async e =>
+        {
+            Console.WriteLine("Conexión MQTT perdida. Reintentando...");
+            await ConectarYSuscribirAsync(mqttClient, options, stoppingToken);
+        };
 
-        var subscribeOptions = _mqttFactory.CreateSubscribeOptionsBuilder()
-            .WithTopicFilter(f => f.WithTopic(MqttTopics.Temperatura))
-            .WithTopicFilter(f => f.WithTopic(MqttTopics.ReleEstadoWildcard))
-            .WithTopicFilter(f => f.WithTopic(MqttTopics.Conexion))
-            .Build();
+        await ConectarYSuscribirAsync(mqttClient, options, stoppingToken);
+    }
 
-        await mqttClient.SubscribeAsync(subscribeOptions, stoppingToken);
-        Console.WriteLine("API suscrita a rancho/temp y rancho/reles/+/+/estado");
+    // NUEVO: bucle de reintento, usado tanto al arrancar como al reconectar
+    private async Task ConectarYSuscribirAsync(IMqttClient mqttClient, MqttClientOptions options, CancellationToken stoppingToken)
+    {
+        if (!await _reconectando.WaitAsync(0, stoppingToken))
+            return;
+        try
+        {
+            while (!stoppingToken.IsCancellationRequested && !mqttClient.IsConnected)
+            {
+                try
+                {
+                    await mqttClient.ConnectAsync(options, stoppingToken);
+                    Console.WriteLine("API conectada al broker MQTT");
+
+                    var subscribeOptions = _mqttFactory.CreateSubscribeOptionsBuilder()
+                        .WithTopicFilter(f => f.WithTopic(MqttTopics.Temperatura))
+                        .WithTopicFilter(f => f.WithTopic(MqttTopics.ReleEstadoWildcard))
+                        .WithTopicFilter(f => f.WithTopic(MqttTopics.Conexion))
+                        .Build();
+
+                    await mqttClient.SubscribeAsync(subscribeOptions, stoppingToken);
+                    Console.WriteLine("API suscrita a todos los topics");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"No se pudo conectar/suscribir: {ex.Message}. Reintentando en 5 segundos...");
+                    await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+                }
+            }
+        }
+        finally
+        {
+            _reconectando.Release(); // libera el candado para el siguiente intento futuro
+        }
     }
 }
 

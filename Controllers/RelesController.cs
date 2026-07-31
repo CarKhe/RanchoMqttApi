@@ -1,29 +1,22 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using RanchoMqttApi;
 
-namespace MyApp.Namespace
+namespace RanchoMqttApi
 {
     [Route("api/[controller]")]
     [ApiController]
     public class RelesController : ControllerBase
     {
-        private readonly IMqttPublisherService _mqttPublisher;
         private readonly IReleService _releService;
-        private readonly IReleCacheService _cache;
-        private static readonly string[] TiposValidos = { "riego", "focos" };
 
-        public RelesController(IMqttPublisherService mqttPublisher, IReleService releService, IReleCacheService cache)
+        public RelesController(IReleService releService)
         {
-            _mqttPublisher = mqttPublisher;
-            _releService   =   releService;
-            _cache         =         cache;
+            _releService = releService;
         }
 
         [HttpGet("estados")]
-        public IActionResult ObtenerEstados()
+        public async Task<IActionResult> ObtenerEstados()
         {
-            var estados = _cache.ObtenerTodos().Values;
+            var estados = await _releService.ObtenerTodosConEstadoAsync();
             return Ok(estados);
         }
 
