@@ -2,18 +2,21 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RanchoMqttApi;
 
 #nullable disable
 
-namespace RanchoMqttApi.Migrations._00InitCreation
+namespace RanchoMqttApi.Migrations._01AddTipoReleSensor
 {
     [DbContext(typeof(DBContext))]
-    partial class DBContextModelSnapshot : ModelSnapshot
+    [Migration("20260731145626_AddTipoReleSensor")]
+    partial class AddTipoReleSensor
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -99,15 +102,6 @@ namespace RanchoMqttApi.Migrations._00InitCreation
                     b.HasIndex("idZona");
 
                     b.ToTable("Rele");
-
-                    b.HasData(
-                        new
-                        {
-                            idRele = 1,
-                            Nombre = "Riego zona 1",
-                            idTipoRele = 1,
-                            idZona = 1
-                        });
                 });
 
             modelBuilder.Entity("RanchoMqttApi.Sensor", b =>
@@ -135,15 +129,6 @@ namespace RanchoMqttApi.Migrations._00InitCreation
                     b.HasIndex("idZona");
 
                     b.ToTable("Sensor");
-
-                    b.HasData(
-                        new
-                        {
-                            idSensor = 1,
-                            idTipoSensor = 1,
-                            idZona = 1,
-                            nombreSensor = "Sensor temperatura"
-                        });
                 });
 
             modelBuilder.Entity("RanchoMqttApi.TipoRele", b =>
@@ -161,18 +146,6 @@ namespace RanchoMqttApi.Migrations._00InitCreation
                     b.HasKey("idTipoRele");
 
                     b.ToTable("TipoReles");
-
-                    b.HasData(
-                        new
-                        {
-                            idTipoRele = 1,
-                            nombreRele = "riego"
-                        },
-                        new
-                        {
-                            idTipoRele = 2,
-                            nombreRele = "focos"
-                        });
                 });
 
             modelBuilder.Entity("RanchoMqttApi.TipoSensor", b =>
@@ -190,13 +163,6 @@ namespace RanchoMqttApi.Migrations._00InitCreation
                     b.HasKey("idTipoSensor");
 
                     b.ToTable("TipoSensores");
-
-                    b.HasData(
-                        new
-                        {
-                            idTipoSensor = 1,
-                            nombreSensor = "temperatura"
-                        });
                 });
 
             modelBuilder.Entity("RanchoMqttApi.Zona", b =>
@@ -214,13 +180,6 @@ namespace RanchoMqttApi.Migrations._00InitCreation
                     b.HasKey("idZona");
 
                     b.ToTable("Zona");
-
-                    b.HasData(
-                        new
-                        {
-                            idZona = 1,
-                            zonaName = "Zona 1"
-                        });
                 });
 
             modelBuilder.Entity("RanchoMqttApi.HistorialEstadoRelei", b =>

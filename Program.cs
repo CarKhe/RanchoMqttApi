@@ -11,12 +11,17 @@ builder.Services.AddDbContext<DBContext>(options =>
 //Agregando SignalR para envio de datos al front sin la necesidad de una solicitud
 builder.Services.AddSignalR();
 
+//Worker del MQTT
 builder.Services.AddHostedService<MqttWorker>();
 
 //Interfaces
 builder.Services.AddSingleton<IMqttPublisherService, MqttPublisherService>();
-builder.Services.AddSingleton<IReleService,ReleService>();
+builder.Services.AddScoped<IReleService,ReleService>();
 builder.Services.AddSingleton<IReleCacheService, ReleCacheService>();
+
+builder.Services.AddScoped<IMqttTopicHandler, ReleEstadoHandler>();
+builder.Services.AddScoped<IMqttTopicHandler, TemperaturaHandler>();
+builder.Services.AddScoped<IMqttTopicHandler, ConexionHandler>();
 
 builder.Services.AddControllers();
 builder.Services.AddSwaggerGen();

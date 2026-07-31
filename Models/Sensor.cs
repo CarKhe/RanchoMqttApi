@@ -8,8 +8,11 @@ public class Sensor
     [Key]
     public int idSensor { get; set; }
     public string nombreSensor { get; set; } = ""; 
+    public int idTipoSensor { get; set; }
+    [ForeignKey("idTipoSensor")]
+    public TipoSensor? tipoSensor { get; set; }
     public int idZona { get; set; } 
     [ForeignKey("idZona")]
-    public required Zona zona { get; set; }
+    public Zona? zona { get; set; }
 
 }

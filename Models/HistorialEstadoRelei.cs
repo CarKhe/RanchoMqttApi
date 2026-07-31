@@ -9,7 +9,7 @@ public class HistorialEstadoRelei
     public int idHistorialEstadoRelei { get; set; }
     public int idRele { get; set; }
     [ForeignKey("idRele")]
-    public required Rele rele { get; set; }
+    public Rele? rele { get; set; } 
 
     public string estado { get; set; } = "";
     public bool exito { get; set; }

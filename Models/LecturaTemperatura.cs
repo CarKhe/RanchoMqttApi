@@ -9,7 +9,7 @@ public class LecturaTemperatura
     public int idLecturaTemperatura { get; set; }
     public int idSensor { get; set; }
     [ForeignKey("idSensor")]
-    public required Sensor sensor { get; set; }
+    public Sensor? sensor { get; set; }
     public double temperatura { get; set; }
     public DateTime FechaHora { get; set; }
 }
