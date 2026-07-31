@@ -1,5 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.SignalR;
 using MQTTnet;
 
 namespace RanchoMqttApi.Workers;
@@ -9,10 +8,12 @@ public class MqttWorker : BackgroundService
     private readonly SemaphoreSlim _reconectando = new(1, 1);
     private readonly MqttClientFactory _mqttFactory = new();
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IHubContext<RelesHub> _hubContext;
 
-    public MqttWorker(IServiceScopeFactory scopeFactory) 
+    public MqttWorker(IServiceScopeFactory scopeFactory, IHubContext<RelesHub> hubContext) 
     {
         _scopeFactory = scopeFactory;
+        _hubContext   =  hubContext;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -44,6 +45,7 @@ public class MqttWorker : BackgroundService
         mqttClient.DisconnectedAsync += async e =>
         {
             Console.WriteLine("Conexión MQTT perdida. Reintentando...");
+            await _hubContext.Clients.All.SendAsync("BrokerDesconectado", "Se perdió la conexión con el broker MQTT");
             await ConectarYSuscribirAsync(mqttClient, options, stoppingToken);
         };
 
@@ -72,6 +74,8 @@ public class MqttWorker : BackgroundService
 
                     await mqttClient.SubscribeAsync(subscribeOptions, stoppingToken);
                     Console.WriteLine("API suscrita a todos los topics");
+                    await _hubContext.Clients.All.SendAsync("BrokerConectado","Se restauró la Conexión");
+                    return;
                 }
                 catch (Exception ex)
                 {

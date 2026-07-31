@@ -7,7 +7,23 @@
 <body>
 <h1>Prueba del Hub RelesHub</h1>
 <p>Estado de conexion: <span id="estadoConexion">conectando...</span></p>
+<div id="bannerBroker" style="display:none; padding:8px; font-weight:bold;"></div>
 <div id="log" style="font-family: monospace;"></div>
+
+<hr>
+
+<h2>Prueba de comando (HTTP)</h2>
+<p>
+  Tipo: <input id="inputTipo" value="riego">
+  Id: <input id="inputId" value="1" type="number">
+  Estado:
+  <select id="inputEstado">
+    <option value="true">on</option>
+    <option value="false">off</option>
+  </select>
+  <button id="btnEnviar">Enviar comando</button>
+</p>
+<p id="resultadoComando" style="font-family: monospace;"></p>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
 <script>
@@ -22,9 +38,52 @@
     document.getElementById("log").prepend(linea);
   });
 
+  const banner = document.getElementById("bannerBroker");
+
+  connection.on("BrokerDesconectado", (mensaje) => {
+    banner.style.display = "block";
+    banner.style.background = "#f8d7da";
+    banner.style.color = "#842029";
+    banner.textContent = "⚠ " + mensaje;
+  });
+
+  connection.on("BrokerConectado", (mensaje) => {
+    banner.style.display = "block";
+    banner.style.background = "#d1e7dd";
+    banner.style.color = "#0f5132";
+    banner.textContent = "✔ " + (mensaje ?? "Conectado al broker");
+    setTimeout(() => { banner.style.display = "none"; }, 4000);
+  });
+
   connection.start()
     .then(() => { document.getElementById("estadoConexion").textContent = "conectado"; })
     .catch(err => { document.getElementById("estadoConexion").textContent = "error: " + err; });
+
+  document.getElementById("btnEnviar").addEventListener("click", async () => {
+    const tipo = document.getElementById("inputTipo").value;
+    const id = document.getElementById("inputId").value;
+    const estado = document.getElementById("inputEstado").value;
+    const resultado = document.getElementById("resultadoComando");
+
+    resultado.textContent = "Enviando...";
+    resultado.style.color = "black";
+
+    try {
+      const resp = await fetch(`/api/reles/${tipo}/${id}/cambiar?estado=${estado}`, { method: "PATCH" });
+      const datos = await resp.json();
+
+      if (resp.ok) {
+        resultado.style.color = "green";
+        resultado.textContent = `OK (${resp.status}): ${datos.mensaje}`;
+      } else {
+        resultado.style.color = "red";
+        resultado.textContent = `Error (${resp.status}): ${datos.mensaje}`;
+      }
+    } catch (err) {
+      resultado.style.color = "red";
+      resultado.textContent = "Error de red: " + err;
+    }
+  });
 </script>
 </body>
 </html>

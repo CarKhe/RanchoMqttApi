@@ -27,7 +27,17 @@ public class ReleService : IReleService
         var topic = MqttTopics.ReleCmd(tipo, id);
         var payload = estado ? "on" : "off";
 
-        await _mqttPublisher.PublishAsync(topic, payload);
+        try
+        {
+            await _mqttPublisher.PublishAsync(topic, payload);
+        }
+        catch(Exception ex)
+        {
+            throw new MqttNoDisponibleException(
+                "No se pudo conectar con el broker MQTT. Intenta de nuevo en unos segundos.", ex);
+        }
+
+        
         return (true, $"Comando enviado a {topic}: {payload}");
     }
 

@@ -23,12 +23,19 @@ namespace RanchoMqttApi
         [HttpPatch("{tipo}/{id}/cambiar")]
         public async Task<IActionResult> Cambiar(string tipo, int id, [FromQuery] bool estado)
         {
-            var (exito, mensaje) = await _releService.CambiarEstadoAsync(tipo, id, estado);
-            if (!exito)
+            try
             {
-                return BadRequest(new { mensaje });
+                var (exito, mensaje) = await _releService.CambiarEstadoAsync(tipo, id, estado);
+                if (!exito)
+                {
+                    return BadRequest(new { mensaje });
+                }
+                return Accepted(new { mensaje = "Comando enviado, esperando confirmación del dispositivo" });
             }
-            return Accepted(new { mensaje = "Comando enviado, esperando confirmación del dispositivo" });
+            catch (MqttNoDisponibleException ex)
+            {
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, new { mensaje = ex.Message });
+            }
         }
     }
 }
