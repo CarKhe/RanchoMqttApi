@@ -19,6 +19,8 @@ builder.Services.AddSingleton<IMqttPublisherService, MqttPublisherService>();
 builder.Services.AddScoped<IReleService,ReleService>();
 builder.Services.AddSingleton<IReleCacheService, ReleCacheService>();
 
+builder.Services.AddSingleton<IComandoTimeoutService, ComandoTimeoutService>();
+
 builder.Services.AddScoped<IMqttTopicHandler, ReleEstadoHandler>();
 builder.Services.AddScoped<IMqttTopicHandler, TemperaturaHandler>();
 builder.Services.AddScoped<IMqttTopicHandler, ConexionHandler>();

@@ -55,6 +55,14 @@
     setTimeout(() => { banner.style.display = "none"; }, 4000);
   });
 
+  connection.on("ComandoExpirado", (tipo, id, mensaje) => {
+    const linea = document.createElement("p");
+    linea.style.color = "#b45309";
+    linea.style.fontWeight = "bold";
+    linea.textContent = new Date().toLocaleTimeString() + " ⏱ EXPIRADO -> tipo: " + tipo + ", id: " + id + " -> " + mensaje;
+    document.getElementById("log").prepend(linea);
+  });
+
   connection.start()
     .then(() => { document.getElementById("estadoConexion").textContent = "conectado"; })
     .catch(err => { document.getElementById("estadoConexion").textContent = "error: " + err; });

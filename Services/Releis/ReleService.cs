@@ -8,11 +8,15 @@ public class ReleService : IReleService
     private readonly DBContext _db;
     private readonly IReleCacheService _cache;
 
-    public ReleService(IMqttPublisherService mqttPublisher, DBContext db, IReleCacheService cache)
+    private readonly IComandoTimeoutService _timeoutService;
+
+    public ReleService(IMqttPublisherService mqttPublisher, DBContext db, 
+        IReleCacheService cache, IComandoTimeoutService timeoutService)
     {
         _mqttPublisher = mqttPublisher;
         _db = db;
         _cache = cache;
+        _timeoutService = timeoutService;
     }
 
     public async Task<(bool exito, string mensaje)> CambiarEstadoAsync(string tipo, int id, bool estado)
@@ -30,15 +34,14 @@ public class ReleService : IReleService
         try
         {
             await _mqttPublisher.PublishAsync(topic, payload);
+            _timeoutService.IniciarMonitoreo(tipo, id);
+            return (true, $"Comando enviado a {topic}: {payload}");
         }
         catch(Exception ex)
         {
             throw new MqttNoDisponibleException(
                 "No se pudo conectar con el broker MQTT. Intenta de nuevo en unos segundos.", ex);
         }
-
-        
-        return (true, $"Comando enviado a {topic}: {payload}");
     }
 
     public async Task<List<ReleEstadoDto>> ObtenerTodosConEstadoAsync()
