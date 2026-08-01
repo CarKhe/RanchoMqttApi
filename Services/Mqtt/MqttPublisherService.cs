@@ -9,14 +9,17 @@ public class MqttPublisherService : IMqttPublisherService
     private readonly IMqttClient _client;
     private readonly MqttClientOptions _options;
     private readonly ILogger<MqttPublisherService> _logger;
+    private readonly IConfiguration _config;
 
-    public MqttPublisherService(ILogger<MqttPublisherService> logger)
+    public MqttPublisherService(ILogger<MqttPublisherService> logger,
+        IConfiguration config)
     {
         _client = _factory.CreateMqttClient();
         _options = new MqttClientOptionsBuilder()
-            .WithTcpServer("localhost", 1883)
+            .WithTcpServer(config["Mqtt:Host"], config.GetValue<int>("Mqtt:Port"))
             .Build();
         _logger = logger;
+        _config = config;
     }
     public async Task PublishAsync(string topic, string payload)
     {

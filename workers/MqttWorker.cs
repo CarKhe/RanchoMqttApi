@@ -10,13 +10,15 @@ public class MqttWorker : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IHubContext<RelesHub> _hubContext;
     private readonly ILogger<MqttWorker> _logger;
+    private readonly IConfiguration _config;
 
     public MqttWorker(IServiceScopeFactory scopeFactory, 
-        IHubContext<RelesHub> hubContext,ILogger<MqttWorker> logger) 
+        IHubContext<RelesHub> hubContext,ILogger<MqttWorker> logger, IConfiguration config) 
     {
         _scopeFactory = scopeFactory;
         _hubContext   =   hubContext;
         _logger       =       logger;
+        _config       =       config;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -24,7 +26,7 @@ public class MqttWorker : BackgroundService
         var mqttClient = _mqttFactory.CreateMqttClient();
 
         var options = new MqttClientOptionsBuilder()
-            .WithTcpServer("localhost", 1883)
+            .WithTcpServer(_config["Mqtt:Host"], _config.GetValue<int>("Mqtt:Port"))
             .Build();
 
         mqttClient.ApplicationMessageReceivedAsync += async e => // ahora async

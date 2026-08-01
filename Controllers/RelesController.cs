@@ -30,7 +30,7 @@ namespace RanchoMqttApi
                 {
                     return BadRequest(new { mensaje });
                 }
-                return Accepted(new { mensaje = "Comando enviado, esperando confirmación del dispositivo" });
+                return Accepted(new { mensaje = ControllersConstants.CoamndoEnviado });
             }
             catch (MqttNoDisponibleException ex)
             {
