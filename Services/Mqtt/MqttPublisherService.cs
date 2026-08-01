@@ -8,13 +8,15 @@ public class MqttPublisherService : IMqttPublisherService
     private readonly MqttClientFactory _factory = new();
     private readonly IMqttClient _client;
     private readonly MqttClientOptions _options;
+    private readonly ILogger<MqttPublisherService> _logger;
 
-    public MqttPublisherService()
+    public MqttPublisherService(ILogger<MqttPublisherService> logger)
     {
         _client = _factory.CreateMqttClient();
         _options = new MqttClientOptionsBuilder()
             .WithTcpServer("localhost", 1883)
             .Build();
+        _logger = logger;
     }
     public async Task PublishAsync(string topic, string payload)
     {
@@ -26,7 +28,7 @@ public class MqttPublisherService : IMqttPublisherService
             .Build();
 
         await _client.PublishAsync(mensaje, CancellationToken.None);
-        Console.WriteLine($"[API publicó] {topic} -> {payload}");
+        _logger.LogInformation(LogMessages.APIPublicacion,topic,payload);
     }
 
     private async Task AsegurarConexionAsync()

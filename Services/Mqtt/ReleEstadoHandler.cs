@@ -41,6 +41,6 @@ public class ReleEstadoHandler : IMqttTopicHandler
         await _db.SaveChangesAsync();
 
         if (huboCambio)
-            await _hubContext.Clients.All.SendAsync("EstadoActualizado", tipo, id, datos.estado, datos.exito);
+            await _hubContext.Clients.All.SendAsync(HubMethods.EstadoActualizado, tipo, id, datos.estado, datos.exito);
     }
 }

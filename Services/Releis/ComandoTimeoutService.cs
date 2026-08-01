@@ -28,7 +28,7 @@ public class ComandoTimeoutService : IComandoTimeoutService
             if (!llegoConfirmacion)
             {
                 await _hubContext.Clients.All.SendAsync(
-                    "ComandoExpirado", tipo, id,
+                    HubMethods.ComandoExpirado, tipo, id,
                     $"El dispositivo no respondió el comando para {tipo}/{id} en {Timeout.TotalSeconds} segundos");
             }
         });

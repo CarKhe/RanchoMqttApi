@@ -1,14 +1,18 @@
 ﻿
 using Microsoft.EntityFrameworkCore;
+using Serilog;
 
 namespace RanchoMqttApi;
 
 public class TemperaturaHandler : IMqttTopicHandler
 {
     private readonly DBContext _db;
-    public TemperaturaHandler(DBContext db)
+    private readonly ILogger<TemperaturaHandler> _logger;
+    public TemperaturaHandler(DBContext db,ILogger<TemperaturaHandler> logger)
     {
         _db = db;
+        _logger = logger;
+        
     }
     
     public bool PuedeManejar(string topic) => MqttTopics.EsTopicDeLecturaSensor(topic);
@@ -25,7 +29,7 @@ public class TemperaturaHandler : IMqttTopicHandler
 
         if (sensor is null)
         {
-            Console.WriteLine($"[TemperaturaHandler] Sensor '{tipo}/{id}' no existe en el catálogo, se ignora la lectura.");
+            _logger.LogWarning($"[TemperaturaHandler] Sensor '{tipo}/{id}' no existe en el catálogo, se ignora la lectura.");
             return;
         }
 

@@ -17,6 +17,6 @@ public class ConexionHandler : IMqttTopicHandler
 
     public async Task ManejarAsync(string topic, string payload)
     {
-        await _hubContext.Clients.All.SendAsync("ConexionActualizada", payload);
+        await _hubContext.Clients.All.SendAsync(HubMethods.ConexionActualizada, payload);
     }
 }

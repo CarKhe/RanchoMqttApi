@@ -40,15 +40,18 @@ public class MqttWorker : BackgroundService
             if (handler is not null)
                 await handler.ManejarAsync(topic, payload);
             else
-                Console.WriteLine($"[Sin manejador] Topic no reconocido: {topic}");
-
+            {
+                _logger.LogWarning(LogMessages.TopicNoReconocido, topic);
+                await _hubContext.Clients.All.SendAsync(HubMethods.EstadoActualizado,LogMessages.TopicNoReconocido,topic);
+            }
+                
         };
 
         // NUEVO: si la conexión se cae despues de haber funcionado, reintenta sola
         mqttClient.DisconnectedAsync += async e =>
         {
-            Console.WriteLine("Conexión MQTT perdida. Reintentando...");
-            await _hubContext.Clients.All.SendAsync("BrokerDesconectado", "Se perdió la conexión con el broker MQTT");
+            _logger.LogWarning(LogMessages.ConexionPerdida);
+            await _hubContext.Clients.All.SendAsync(HubMethods.BrokerDesconectado, LogMessages.ConexionPerdida);
             await ConectarYSuscribirAsync(mqttClient, options, stoppingToken);
         };
 
@@ -67,7 +70,7 @@ public class MqttWorker : BackgroundService
                 try
                 {
                     await mqttClient.ConnectAsync(options, stoppingToken);
-                    _logger.LogInformation("API conectada al broker MQTT");
+                    _logger.LogInformation(LogMessages.ApiConectada);
 
                     var subscribeOptions = _mqttFactory.CreateSubscribeOptionsBuilder()
                         .WithTopicFilter(f => f.WithTopic(MqttTopics.SensorLecturaWildcard))
@@ -76,13 +79,13 @@ public class MqttWorker : BackgroundService
                         .Build();
 
                     await mqttClient.SubscribeAsync(subscribeOptions, stoppingToken);
-                    Console.WriteLine("API suscrita a todos los topics");
-                    await _hubContext.Clients.All.SendAsync("BrokerConectado","Se restauró la Conexión");
+                    _logger.LogInformation(LogMessages.ApiSuscrita);
+                    await _hubContext.Clients.All.SendAsync(HubMethods.BrokerConectado,LogMessages.ConexionRestaurada);
                     return;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "No se pudo conectar/suscribir. Reintentando en 5 segundos...");
+                    _logger.LogWarning(ex,LogMessages.ErrorConexionReintento);
                     await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
                 }
             }
