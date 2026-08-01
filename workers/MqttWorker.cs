@@ -44,7 +44,6 @@ public class MqttWorker : BackgroundService
             else
             {
                 _logger.LogWarning(LogMessages.TopicNoReconocido, topic);
-                await _hubContext.Clients.All.SendAsync(HubMethods.EstadoActualizado,LogMessages.TopicNoReconocido,topic);
             }
                 
         };

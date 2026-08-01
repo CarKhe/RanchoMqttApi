@@ -9,4 +9,5 @@ public static class HubMethods
     public const string BrokerConectado = "BrokerConectado";
     public const string ConexionActualizada = "ConexionActualizada";
     public const string ComandoExpirado = "ComandoExpirado";
+    public const string TemperaturaActualizada = "TemperaturaActualizada";
 }

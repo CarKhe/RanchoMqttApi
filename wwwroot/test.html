@@ -8,6 +8,7 @@
 <h1>Prueba del Hub RelesHub</h1>
 <p>Estado de conexion: <span id="estadoConexion">conectando...</span></p>
 <div id="bannerBroker" style="display:none; padding:8px; font-weight:bold;"></div>
+<p>Última temperatura: <span id="ultimaTemperatura">-- °C</span> <small id="ultimaTemperaturaInfo"></small></p>
 <div id="log" style="font-family: monospace;"></div>
 
 <hr>
@@ -53,6 +54,16 @@
     banner.style.color = "#0f5132";
     banner.textContent = "✔ " + (mensaje ?? "Conectado al broker");
     setTimeout(() => { banner.style.display = "none"; }, 4000);
+  });
+
+  connection.on("TemperaturaActualizada", (tipo, id, temperatura, fecha) => {
+    document.getElementById("ultimaTemperatura").textContent = temperatura + " °C";
+    document.getElementById("ultimaTemperaturaInfo").textContent =
+      "(sensor " + tipo + "/" + id + " - " + new Date(fecha).toLocaleTimeString() + ")";
+
+    const linea = document.createElement("p");
+    linea.textContent = new Date().toLocaleTimeString() + " 🌡 tipo: " + tipo + ", id: " + id + ", temperatura: " + temperatura;
+    document.getElementById("log").prepend(linea);
   });
 
   connection.on("ComandoExpirado", (tipo, id, mensaje) => {

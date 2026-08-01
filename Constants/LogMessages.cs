@@ -12,5 +12,6 @@ public static class LogMessages
     public const string ErrorConexionReintento = "No se pudo conectar/suscribir. Reintentando en 5 segundos...";
     public const string TopicNoReconocido = "Topic no reconocido: {Topic}";
     public const string APIPublicacion = "[API publicó] {topic} -> {payload}";
+    public const string SensorNoExiste = "Sensor '{Tipo}/{Id}' no existe en el catálogo, se ignora la lectura.";
 
 }

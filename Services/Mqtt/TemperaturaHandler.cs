@@ -1,4 +1,5 @@
 ﻿
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
@@ -8,11 +9,12 @@ public class TemperaturaHandler : IMqttTopicHandler
 {
     private readonly DBContext _db;
     private readonly ILogger<TemperaturaHandler> _logger;
-    public TemperaturaHandler(DBContext db,ILogger<TemperaturaHandler> logger)
+    private readonly IHubContext<RelesHub> _hubContext;
+    public TemperaturaHandler(DBContext db,ILogger<TemperaturaHandler> logger, IHubContext<RelesHub> hubContext)
     {
         _db = db;
         _logger = logger;
-        
+        _hubContext = hubContext;
     }
     
     public bool PuedeManejar(string topic) => MqttTopics.EsTopicDeLecturaSensor(topic);
@@ -29,17 +31,21 @@ public class TemperaturaHandler : IMqttTopicHandler
 
         if (sensor is null)
         {
-            _logger.LogWarning($"[TemperaturaHandler] Sensor '{tipo}/{id}' no existe en el catálogo, se ignora la lectura.");
+            _logger.LogWarning(LogMessages.SensorNoExiste, tipo, id);
             return;
         }
+
+        var temperatura = double.Parse(payload);
+        var fecha = DateTime.UtcNow;
 
         _db.LecturaTemperaturas.Add(new LecturaTemperatura
         {
             idSensor = sensor.idSensor,
-            temperatura = double.Parse(payload),
-            FechaHora = DateTime.UtcNow
+            temperatura = temperatura,
+            FechaHora = fecha
         });
         await _db.SaveChangesAsync();
+        await _hubContext.Clients.All.SendAsync(HubMethods.TemperaturaActualizada, tipo, sensor.idSensor, temperatura, fecha);
     }
 
 
