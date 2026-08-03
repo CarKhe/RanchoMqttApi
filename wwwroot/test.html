@@ -62,7 +62,7 @@
       "(sensor " + tipo + "/" + id + " - " + new Date(fecha).toLocaleTimeString() + ")";
 
     const linea = document.createElement("p");
-    linea.textContent = new Date().toLocaleTimeString() + " 🌡 tipo: " + tipo + ", id: " + id + ", temperatura: " + temperatura;
+    linea.textContent = new Date().toLocaleTimeString() + "tipo: " + tipo + ", id: " + id + ", temperatura: " + temperatura;
     document.getElementById("log").prepend(linea);
   });
 

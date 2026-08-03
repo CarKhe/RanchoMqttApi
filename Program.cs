@@ -38,7 +38,23 @@ builder.Services.AddScoped<IMqttTopicHandler, ConexionHandler>();
 builder.Services.AddControllers();
 builder.Services.AddSwaggerGen();
 
+//Politicas CORS 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AngularPolicy", policy =>
+    {
+        policy
+            .WithOrigins(
+                "http://localhost:4200")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
+
 var app = builder.Build();
+
+app.UseCors("AngularPolicy");  
 
 app.MapHub<RelesHub>("/hubs/reles");
 
@@ -50,7 +66,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseStaticFiles();
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 app.MapControllers();
 app.Run();
 
