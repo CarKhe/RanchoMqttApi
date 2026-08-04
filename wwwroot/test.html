@@ -6,7 +6,18 @@
 </head>
 <body>
 <h1>Prueba del Hub RelesHub</h1>
-<p>Estado de conexion: <span id="estadoConexion">conectando...</span></p>
+
+<h2>Login</h2>
+<p>
+  Email: <input id="inputEmail" value="admin@rancho.com">
+  Password: <input id="inputPassword" type="password" value="admin123">
+  <button id="btnLogin">Login</button>
+</p>
+<p>Sesión: <span id="estadoLogin">no autenticado</span></p>
+
+<hr>
+
+<p>Estado de conexion: <span id="estadoConexion">esperando login...</span></p>
 <div id="bannerBroker" style="display:none; padding:8px; font-weight:bold;"></div>
 <p>Última temperatura: <span id="ultimaTemperatura">-- °C</span> <small id="ultimaTemperaturaInfo"></small></p>
 <div id="log" style="font-family: monospace;"></div>
@@ -28,11 +39,52 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
 <script>
-  const connection = new signalR.HubConnectionBuilder()
-    .withUrl("/hubs/reles")
-    .withAutomaticReconnect()
-    .build();
+  let token = null;
+  let connection = null;
 
+  document.getElementById("btnLogin").addEventListener("click", async () => {
+    const email = document.getElementById("inputEmail").value;
+    const password = document.getElementById("inputPassword").value;
+    const estadoLogin = document.getElementById("estadoLogin");
+
+    estadoLogin.textContent = "autenticando...";
+
+    try {
+      const resp = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userMail: email, password: password })
+      });
+
+      if (!resp.ok) {
+        estadoLogin.textContent = "login fallido (" + resp.status + ")";
+        return;
+      }
+
+      const datos = await resp.json();
+      token = datos.token;
+      estadoLogin.textContent = "autenticado ✔";
+
+      iniciarConexion(token);
+    } catch (err) {
+      estadoLogin.textContent = "error: " + err;
+    }
+  });
+
+  function iniciarConexion(token) {
+    connection = new signalR.HubConnectionBuilder()
+      .withUrl("/hubs/reles", { accessTokenFactory: () => token })
+      .withAutomaticReconnect()
+      .build();
+
+    registrarHandlers(connection);
+
+    connection.start()
+      .then(() => { document.getElementById("estadoConexion").textContent = "conectado"; })
+      .catch(err => { document.getElementById("estadoConexion").textContent = "error: " + err; });
+  }
+
+  function registrarHandlers(connection) {
   connection.on("EstadoActualizado", (tipo, id, estado, exito) => {
     const linea = document.createElement("p");
     linea.textContent = new Date().toLocaleTimeString() + " -> tipo: " + tipo + ", id: " + id + ", estado: " + estado + ", exito: " + exito;
@@ -73,10 +125,7 @@
     linea.textContent = new Date().toLocaleTimeString() + " ⏱ EXPIRADO -> tipo: " + tipo + ", id: " + id + " -> " + mensaje;
     document.getElementById("log").prepend(linea);
   });
-
-  connection.start()
-    .then(() => { document.getElementById("estadoConexion").textContent = "conectado"; })
-    .catch(err => { document.getElementById("estadoConexion").textContent = "error: " + err; });
+  }
 
   document.getElementById("btnEnviar").addEventListener("click", async () => {
     const tipo = document.getElementById("inputTipo").value;
@@ -88,7 +137,10 @@
     resultado.style.color = "black";
 
     try {
-      const resp = await fetch(`/api/reles/${tipo}/${id}/cambiar?estado=${estado}`, { method: "PATCH" });
+      const resp = await fetch(`/api/reles/${tipo}/${id}/cambiar?estado=${estado}`, {
+        method: "PATCH",
+        headers: token ? { "Authorization": "Bearer " + token } : {}
+      });
       const datos = await resp.json();
 
       if (resp.ok) {

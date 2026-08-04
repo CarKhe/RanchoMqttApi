@@ -1,8 +1,10 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace RanchoMqttApi
 {
     [Route("api/[controller]")]
+    [Authorize]
     [ApiController]
     public class RelesController : ControllerBase
     {

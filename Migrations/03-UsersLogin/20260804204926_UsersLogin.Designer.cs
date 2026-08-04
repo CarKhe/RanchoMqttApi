@@ -2,18 +2,21 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RanchoMqttApi;
 
 #nullable disable
 
-namespace RanchoMqttApi.Migrations._00InitCreation
+namespace RanchoMqttApi.Migrations._03UsersLogin
 {
     [DbContext(typeof(DBContext))]
-    partial class DBContextModelSnapshot : ModelSnapshot
+    [Migration("20260804204926_UsersLogin")]
+    partial class UsersLogin
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -228,17 +231,6 @@ namespace RanchoMqttApi.Migrations._00InitCreation
                     b.HasKey("idUser");
 
                     b.ToTable("Users");
-
-                    b.HasData(
-                        new
-                        {
-                            idUser = 1,
-                            createDate = new DateTime(2026, 8, 4, 0, 0, 0, 0, DateTimeKind.Utc),
-                            passwordHash = "AQAAAAIAAYagAAAAEN/I0zj/0K1lzubB26Cp9BhShozc3XkiSW7abwfFgKxIKyXwzo0OxwDJhsJmmwZaLQ==",
-                            updatedLogin = new DateTime(2026, 8, 4, 0, 0, 0, 0, DateTimeKind.Utc),
-                            userMail = "admin@rancho.com",
-                            userName = "admin"
-                        });
                 });
 
             modelBuilder.Entity("RanchoMqttApi.Zona", b =>

@@ -13,6 +13,7 @@ public class DBContext : DbContext
     public DbSet<LecturaTemperatura> LecturaTemperaturas { get; set; }
     public DbSet<TipoRele> TipoReles { get; set; }
     public DbSet<TipoSensor> TipoSensores { get; set; }
+    public DbSet<Users> Users { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
 {
@@ -36,6 +37,16 @@ public class DBContext : DbContext
     modelBuilder.Entity<Sensor>().HasData(
         new Sensor { idSensor = 1, nombreSensor = "Sensor temperatura", idZona = 1, idTipoSensor = 1 }
     );
+
+    modelBuilder.Entity<Users>().HasData(new Users
+    {
+        idUser = 1,
+        userName = "admin",
+        userMail = "admin@rancho.com",
+        passwordHash = "AQAAAAIAAYagAAAAEN/I0zj/0K1lzubB26Cp9BhShozc3XkiSW7abwfFgKxIKyXwzo0OxwDJhsJmmwZaLQ==",
+        createDate = new DateTime(2026, 8, 4, 0, 0, 0, DateTimeKind.Utc),
+        updatedLogin = new DateTime(2026, 8, 4, 0, 0, 0, DateTimeKind.Utc)
+    });
 }
  
 
