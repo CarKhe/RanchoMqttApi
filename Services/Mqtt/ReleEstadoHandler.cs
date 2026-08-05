@@ -40,7 +40,7 @@ public class ReleEstadoHandler : IMqttTopicHandler
         });
         await _db.SaveChangesAsync();
 
-        if (huboCambio)
+        if (huboCambio || !datos.exito)
             await _hubContext.Clients.All.SendAsync(HubMethods.EstadoActualizado, tipo, id, datos.estado, datos.exito);
     }
 }

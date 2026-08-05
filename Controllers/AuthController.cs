@@ -7,6 +7,7 @@ using RanchoMqttApi;
 namespace MyApp.Namespace
 {
     public record LoginRequest(string UserMail, string Password);
+    
     [Route("api/[controller]")]
     [ApiController]
     public class AuthController : ControllerBase

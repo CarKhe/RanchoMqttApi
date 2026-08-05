@@ -131,10 +131,5 @@ app.UseStaticFiles();
 app.MapControllers();
 app.Run();
 
-if (args.Contains("--hash"))
-{
-    var hasher = new PasswordHasher<Users>();
-    Console.WriteLine(hasher.HashPassword(null!, "admin123"));
-    return;
-}
+
 
