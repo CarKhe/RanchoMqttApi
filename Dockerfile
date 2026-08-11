@@ -20,14 +20,13 @@ ENV ASPNETCORE_URLS=http://+:8080 \
     DOTNET_RUNNING_IN_CONTAINER=true \
     TZ=America/Matamoros
 
-# Usuario sin privilegios (buena practica: si alguien escapa de la app, no es root)
-RUN adduser --disabled-password --gecos "" --uid 1001 appuser \
- && mkdir -p /app/Logs \
- && chown -R appuser:appuser /app
+# Las imagenes de .NET ya traen un usuario sin privilegios (uid 1654, se llama "app").
+# No hace falta crearlo: la imagen base no incluye adduser.
+RUN mkdir -p /app/Logs && chown -R 1654:1654 /app
 
-COPY --from=build --chown=appuser:appuser /app/publish ./
+COPY --from=build --chown=1654:1654 /app/publish ./
 
-USER appuser
+USER 1654
 EXPOSE 8080
 
 ENTRYPOINT ["dotnet", "RanchoMqttApi.dll"]
