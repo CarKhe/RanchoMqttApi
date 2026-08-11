@@ -43,6 +43,7 @@ builder.Services.AddSingleton<IComandoTimeoutService, ComandoTimeoutService>();
 builder.Services.AddScoped<IMqttTopicHandler, ReleEstadoHandler>();
 builder.Services.AddScoped<IMqttTopicHandler, TemperaturaHandler>();
 builder.Services.AddScoped<IMqttTopicHandler, ConexionHandler>();
+builder.Services.AddScoped<IProgramacionService, ProgramacionService>();
 
 //JWT: settings + servicio
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>()
@@ -57,6 +58,10 @@ if (string.IsNullOrWhiteSpace(jwtSettings.Key) || jwtSettings.Key.Length < 32)
 
 builder.Services.AddSingleton(jwtSettings);
 builder.Services.AddScoped<IJwtService, JwtService>();
+
+var riegoOptions = builder.Configuration.GetSection("Riego").Get<RiegoOptions>()
+    ?? new RiegoOptions();
+builder.Services.AddSingleton(riegoOptions);
 
 //Politicas CORS (los origenes se configuran por Cors__AllowedOrigins__0, __1, ...)
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
@@ -173,6 +178,7 @@ app.UseStaticFiles();
 
 //Endpoint simple para healthchecks de Dokploy / Traefik
 app.MapGet("/health", () => Results.Ok(new { status = "ok", utc = DateTime.UtcNow }));
+
 
 //app.UseHttpsRedirection();
 app.MapControllers();

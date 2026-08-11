@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace RanchoMqttApi
 {
@@ -9,10 +10,12 @@ namespace RanchoMqttApi
     public class RelesController : ControllerBase
     {
         private readonly IReleService _releService;
+        private readonly RiegoOptions _riego;
 
-        public RelesController(IReleService releService)
+        public RelesController(IReleService releService, IOptions<RiegoOptions> riego)
         {
             _releService = releService;
+            _riego = riego.Value;   
         }
 
         [HttpGet("estados")]

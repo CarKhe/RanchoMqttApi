@@ -2,18 +2,21 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RanchoMqttApi;
 
 #nullable disable
 
-namespace RanchoMqttApi.Migrations._00InitCreation
+namespace RanchoMqttApi.Migrations._06AddProgramacionRiego
 {
     [DbContext(typeof(DBContext))]
-    partial class DBContextModelSnapshot : ModelSnapshot
+    [Migration("20260811222607_AddProgramacionRiego")]
+    partial class AddProgramacionRiego
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,78 +24,6 @@ namespace RanchoMqttApi.Migrations._00InitCreation
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("RanchoMqttApi.EjecucionProgramacion", b =>
-                {
-                    b.Property<int>("idEjecucion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("idEjecucion"));
-
-                    b.Property<int>("estado")
-                        .HasColumnType("integer");
-
-                    b.Property<DateOnly>("fecha")
-                        .HasColumnType("date");
-
-                    b.Property<DateTime?>("finReal")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("idProgramacion")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("inicioReal")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("idEjecucion");
-
-                    b.HasIndex("idProgramacion", "fecha")
-                        .IsUnique();
-
-                    b.ToTable("EjecucionesProgramacion");
-                });
-
-            modelBuilder.Entity("RanchoMqttApi.EjecucionReleDetalle", b =>
-                {
-                    b.Property<int>("idEjecucionDetalle")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("idEjecucionDetalle"));
-
-                    b.Property<int>("duracionMinutos")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("estado")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("finPrevisto")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("finReal")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("idEjecucion")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("idRele")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("inicioReal")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("orden")
-                        .HasColumnType("integer");
-
-                    b.HasKey("idEjecucionDetalle");
-
-                    b.HasIndex("idEjecucion");
-
-                    b.HasIndex("idRele");
-
-                    b.ToTable("EjecucionReleDetalles");
-                });
 
             modelBuilder.Entity("RanchoMqttApi.HistorialEstadoRelei", b =>
                 {
@@ -408,36 +339,6 @@ namespace RanchoMqttApi.Migrations._00InitCreation
                         });
                 });
 
-            modelBuilder.Entity("RanchoMqttApi.EjecucionProgramacion", b =>
-                {
-                    b.HasOne("RanchoMqttApi.ProgramacionRiego", "programacion")
-                        .WithMany()
-                        .HasForeignKey("idProgramacion")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("programacion");
-                });
-
-            modelBuilder.Entity("RanchoMqttApi.EjecucionReleDetalle", b =>
-                {
-                    b.HasOne("RanchoMqttApi.EjecucionProgramacion", "ejecucion")
-                        .WithMany("detalles")
-                        .HasForeignKey("idEjecucion")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("RanchoMqttApi.Rele", "rele")
-                        .WithMany()
-                        .HasForeignKey("idRele")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ejecucion");
-
-                    b.Navigation("rele");
-                });
-
             modelBuilder.Entity("RanchoMqttApi.HistorialEstadoRelei", b =>
                 {
                     b.HasOne("RanchoMqttApi.Rele", "rele")
@@ -515,11 +416,6 @@ namespace RanchoMqttApi.Migrations._00InitCreation
                     b.Navigation("tipoSensor");
 
                     b.Navigation("zona");
-                });
-
-            modelBuilder.Entity("RanchoMqttApi.EjecucionProgramacion", b =>
-                {
-                    b.Navigation("detalles");
                 });
 
             modelBuilder.Entity("RanchoMqttApi.ProgramacionRiego", b =>

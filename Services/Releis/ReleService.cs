@@ -19,7 +19,8 @@ public class ReleService : IReleService
         _timeoutService = timeoutService;
     }
 
-    public async Task<(bool exito, string mensaje)> CambiarEstadoAsync(string tipo, int id, bool estado)
+    public async Task<(bool exito, string mensaje)> CambiarEstadoAsync(
+        string tipo, int id, bool estado,OrigenComando origen = OrigenComando.Manual)
     {
         var rele = await _db.Rele
             .Include(r => r.tipoRele)
@@ -27,6 +28,10 @@ public class ReleService : IReleService
 
         if (rele is null)
             return (false, $"El relevador '{tipo}/{id}' no existe en el catálogo");
+
+        // Fase 5: aquí va la cancelación de la corrida de hoy
+        // if (!estado && origen == OrigenComando.Manual)
+        //     await CancelarDetalleEnCursoAsync(id);
 
         var topic = MqttTopics.ReleCmd(tipo, id);
         var payload = estado ? "on" : "off";
