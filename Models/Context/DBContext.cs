@@ -31,7 +31,8 @@ public class DBContext : DbContext
     );
 
     modelBuilder.Entity<Rele>().HasData(
-        new Rele { idRele = 1, Nombre = "Riego zona 1", idZona = 1, idTipoRele = 1 }
+        new Rele { idRele = 1, Nombre = "Riego zona 1", idZona = 1, idTipoRele = 1 },
+        new Rele { idRele = 2, Nombre = "Riego zona 2", idZona = 1, idTipoRele = 1 }
     );
 
     modelBuilder.Entity<Sensor>().HasData(
