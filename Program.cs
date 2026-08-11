@@ -12,6 +12,12 @@ var builder = WebApplication.CreateBuilder(args);
 
 //Connection SQL
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException(
+        "Falta la cadena de conexion. Define la variable de entorno " +
+        "ConnectionStrings__DefaultConnection (o el valor en appsettings.Development.json).");
+}
 builder.Services.AddDbContext<DBContext>(options =>
     options.UseNpgsql(connectionString));
 
@@ -39,17 +45,29 @@ builder.Services.AddScoped<IMqttTopicHandler, TemperaturaHandler>();
 builder.Services.AddScoped<IMqttTopicHandler, ConexionHandler>();
 
 //JWT: settings + servicio
-var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>()!;
+var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>()
+    ?? throw new InvalidOperationException(
+        "Falta la seccion 'Jwt'. Define Jwt__Key, Jwt__Issuer, Jwt__Audience y Jwt__ExpirationHours " +
+        "como variables de entorno.");
+
+if (string.IsNullOrWhiteSpace(jwtSettings.Key) || jwtSettings.Key.Length < 32)
+{
+    throw new InvalidOperationException("Jwt__Key esta vacia o es demasiado corta (minimo 32 caracteres).");
+}
+
 builder.Services.AddSingleton(jwtSettings);
 builder.Services.AddScoped<IJwtService, JwtService>();
 
-//Politicas CORS 
+//Politicas CORS (los origenes se configuran por Cors__AllowedOrigins__0, __1, ...)
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                     ?? new[] { "http://localhost:4200" };
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AngularPolicy", policy =>
     {
         policy
-            .WithOrigins("http://localhost:4200")
+            .WithOrigins(allowedOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
@@ -112,6 +130,32 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
+//Aplica las migraciones pendientes al arrancar.
+//Reintenta porque el contenedor de Postgres puede tardar unos segundos en aceptar conexiones.
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<DBContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+    const int maxIntentos = 10;
+    for (var intento = 1; intento <= maxIntentos; intento++)
+    {
+        try
+        {
+            db.Database.Migrate();
+            logger.LogInformation("Migraciones aplicadas correctamente.");
+            break;
+        }
+        catch (Exception ex) when (intento < maxIntentos)
+        {
+            logger.LogWarning(ex,
+                "Base de datos no disponible (intento {Intento}/{Max}). Reintento en 5s...",
+                intento, maxIntentos);
+            Thread.Sleep(TimeSpan.FromSeconds(5));
+        }
+    }
+}
+
 app.UseCors("AngularPolicy");
 
 app.UseAuthentication();
@@ -119,7 +163,7 @@ app.UseAuthorization();
 
 app.MapHub<RelesHub>("/hubs/reles");
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Swagger:Enabled"))
 {
     app.UseSwagger();
     app.UseSwaggerUI();
@@ -127,9 +171,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseStaticFiles();
 
+//Endpoint simple para healthchecks de Dokploy / Traefik
+app.MapGet("/health", () => Results.Ok(new { status = "ok", utc = DateTime.UtcNow }));
+
 //app.UseHttpsRedirection();
 app.MapControllers();
 app.Run();
-
-
-

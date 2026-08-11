@@ -1,0 +1,22 @@
+# Lo que NO debe entrar al contexto de build (build mas rapido y sin secretos)
+**/bin/
+**/obj/
+**/out/
+**/publish/
+.git/
+.gitignore
+.vs/
+.vscode/
+.idea/
+**/.DS_Store
+Logs/
+*.log
+appsettings.Development.json
+appsettings.Local.json
+.env
+secrets.json
+Dockerfile
+.dockerignore
+*.md
+RanchoMqttApi.http
+docker-compose*.yml
