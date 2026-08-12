@@ -7,6 +7,7 @@ using Serilog;
 using Microsoft.OpenApi;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
+using Serilog.Events;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +26,9 @@ builder.Services.AddDbContext<DBContext>(options =>
 builder.Host.UseSerilog((context, config) =>
 {
     config
+        .MinimumLevel.Information()
+        .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", LogEventLevel.Warning)
+        .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
         .WriteTo.Console()
         .WriteTo.File("Logs/rancho-.log", rollingInterval: RollingInterval.Day);
 });
@@ -44,6 +48,7 @@ builder.Services.AddScoped<IMqttTopicHandler, ReleEstadoHandler>();
 builder.Services.AddScoped<IMqttTopicHandler, TemperaturaHandler>();
 builder.Services.AddScoped<IMqttTopicHandler, ConexionHandler>();
 builder.Services.AddScoped<IProgramacionService, ProgramacionService>();
+builder.Services.AddScoped<IMotorProgramacionService,MotorProgramacionService>();
 
 //JWT: settings + servicio
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>()
