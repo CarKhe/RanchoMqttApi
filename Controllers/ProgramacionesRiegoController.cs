@@ -1,68 +1,74 @@
-using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using RanchoMqttApi;
 
-namespace MyApp.Namespace
+namespace RanchoMqttApi;
+
+[Route("api/[controller]")]
+[Authorize]
+[ApiController]
+public class ProgramacionesRiegoController : ControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class ProgramacionesRiegoController : ControllerBase
+    private readonly IProgramacionService _service;
+
+    public ProgramacionesRiegoController(IProgramacionService service) => _service = service;
+
+    // ---- reglas ----
+
+    [HttpGet]
+    public async Task<IActionResult> Obtener() => Ok(await _service.ObtenerTodasAsync());
+
+    [HttpPost]
+    public async Task<IActionResult> Crear([FromBody] CrearProgramacionDto dto)
     {
-        private readonly IProgramacionService _service;
+        var (exito, mensaje, id) = await _service.CrearAsync(dto);
+        return exito ? Ok(new { id, mensaje }) : BadRequest(new { mensaje });
+    }
 
-        public ProgramacionesRiegoController(IProgramacionService service) => _service = service;
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Actualizar(int id, [FromBody] CrearProgramacionDto dto)
+    {
+        var (exito, mensaje) = await _service.ActualizarAsync(id, dto);
+        return exito ? Ok(new { mensaje }) : BadRequest(new { mensaje });
+    }
 
-        [HttpGet]
-        public async Task<IActionResult> Obtener() => Ok(await _service.ObtenerTodasAsync());
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Eliminar(int id)
+    {
+        var (exito, mensaje) = await _service.EliminarAsync(id);
+        return exito ? Ok(new { mensaje }) : BadRequest(new { mensaje });
+    }
 
-        [HttpPost]
-        public async Task<IActionResult> Crear([FromBody] CrearProgramacionDto dto)
-        {
-            var (exito, mensaje, id) = await _service.CrearAsync(dto);
-            if (!exito) return BadRequest(new { mensaje });
-            return Ok(new { id, mensaje });
-        }
-        
-//TEMPORALES
-        [HttpPost("tick-manual")]
-        public async Task<IActionResult> TickManual(
-            [FromServices] IMotorProgramacionService motor, CancellationToken ct)
-        {
-            await motor.TickAsync(ct);
-            return Ok(new { mensaje = "Tick ejecutado" });
-        }
+    [HttpPatch("{id}/habilitada")]
+    public async Task<IActionResult> CambiarHabilitada(int id, [FromQuery] bool valor)
+    {
+        var (exito, mensaje) = await _service.CambiarHabilitadaAsync(id, valor);
+        return exito ? Ok(new { mensaje }) : BadRequest(new { mensaje });
+    }
 
-        [HttpGet("corridas")]
-        public async Task<IActionResult> Corridas([FromServices] DBContext db, CancellationToken ct)
-        {
-            var corridas = await db.EjecucionesProgramacion
-                .OrderByDescending(e => e.fecha)
-                .ThenByDescending(e => e.idEjecucion)
-                .Take(5)
-                .AsNoTracking()
-                .Select(e => new
-                {
-                    e.idEjecucion,
-                    e.idProgramacion,
-                    e.fecha,
-                    estado = e.estado.ToString(),
-                    e.inicioReal,
-                    e.finReal,
-                    detalles = e.detalles.OrderBy(d => d.orden).Select(d => new
-                    {
-                        d.idRele,
-                        d.orden,
-                        d.duracionMinutos,
-                        estado = d.estado.ToString(),
-                        d.inicioReal,
-                        d.finPrevisto,
-                        d.finReal
-                    })
-                })
-                .ToListAsync(ct);
+    // ---- corridas ----
 
-            return Ok(corridas);
-        }
+    [HttpGet("corridas/hoy")]
+    public async Task<IActionResult> CorridasDeHoy(CancellationToken ct)
+        => Ok(await _service.ObtenerCorridasDeHoyAsync(ct));
+
+    [HttpPost("{id}/cancelar-hoy")]
+    public async Task<IActionResult> CancelarHoy(int id, CancellationToken ct)
+    {
+        var (exito, mensaje) = await _service.CancelarHoyAsync(id, ct);
+        return exito ? Ok(new { mensaje }) : BadRequest(new { mensaje });
+    }
+
+    // ---- temporal, se va en la Fase 7 ----
+
+    [HttpPost("tick-manual")]
+    public async Task<IActionResult> TickManual(
+        [FromServices] IMotorProgramacionService motor,
+        [FromServices] IWebHostEnvironment env,
+        CancellationToken ct)
+    {
+        if (!env.IsDevelopment()) return NotFound();
+
+        await motor.TickAsync(ct);
+        return Ok(new { mensaje = "Tick ejecutado" });
     }
 }

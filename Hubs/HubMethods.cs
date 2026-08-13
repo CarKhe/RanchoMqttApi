@@ -10,4 +10,5 @@ public static class HubMethods
     public const string ConexionActualizada = "ConexionActualizada";
     public const string ComandoExpirado = "ComandoExpirado";
     public const string TemperaturaActualizada = "TemperaturaActualizada";
+    public const string EjecucionActualizada = "EjecucionActualizada";
 }

@@ -36,8 +36,9 @@ builder.Host.UseSerilog((context, config) =>
 //Agregando SignalR para envio de datos al front sin la necesidad de una solicitud
 builder.Services.AddSignalR();
 
-//Worker del MQTT
+//Workers
 builder.Services.AddHostedService<MqttWorker>();
+builder.Services.AddHostedService<ProgramacionRiegoWorker>();
 
 //Interfaces
 builder.Services.AddSingleton<IMqttPublisherService, MqttPublisherService>();

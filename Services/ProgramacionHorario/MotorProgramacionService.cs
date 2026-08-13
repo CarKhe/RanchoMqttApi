@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace RanchoMqttApi;
 
@@ -9,18 +10,22 @@ public class MotorProgramacionService : IMotorProgramacionService
     private readonly RiegoOptions _opciones;
     private readonly ILogger<MotorProgramacionService> _logger;
     private readonly TimeZoneInfo _zona;
+    private readonly IHubContext<RelesHub> _hub;
+    private readonly HashSet<int> _tocadas = [];
 
     public MotorProgramacionService(
         DBContext db,
         IReleService rele,
         RiegoOptions opciones,
-        ILogger<MotorProgramacionService> logger)
+        ILogger<MotorProgramacionService> logger,
+        IHubContext<RelesHub> hub)
     {
         _db = db;
         _rele = rele;
         _opciones = opciones;
         _logger = logger;
         _zona = TimeZoneInfo.FindSystemTimeZoneById(opciones.ZonaHoraria);
+        _hub = hub;
     }
 
     public async Task TickAsync(CancellationToken ct)
@@ -31,6 +36,8 @@ public class MotorProgramacionService : IMotorProgramacionService
         await ArrancarEjecucionesAsync(ahora, ct);
         await AvanzarRelesAsync(ahora, ct);
         await CerrarVentanasAsync(ahora, ct);
+
+        await NotificarCambiosAsync(ct);
     }
 
     private async Task MaterializarOcurrenciasAsync(DateTimeOffset ahora, CancellationToken ct)
@@ -78,6 +85,7 @@ public class MotorProgramacionService : IMotorProgramacionService
             }
 
             _db.EjecucionesProgramacion.Add(corrida);
+            _tocadas.Add(p.idProgramacion);
 
             _logger.LogInformation("Corrida creada: '{Nombre}' para {Fecha}, {N} relés",
                 p.Nombre, hoy, corrida.detalles.Count);
@@ -114,6 +122,9 @@ public class MotorProgramacionService : IMotorProgramacionService
                 continue;
             }
 
+            // de aquí en adelante cualquier camino cambia estado
+            _tocadas.Add(corrida.idProgramacion);
+
             // la ventana ya cerró completa: la API estuvo apagada todo ese rato
             if (ahora >= fin)
             {
@@ -143,7 +154,7 @@ public class MotorProgramacionService : IMotorProgramacionService
                 programacion.Nombre, programacion.modoEjecucion, aEncender.Count);
 
             foreach (var d in aEncender)
-                EncenderDetalle(d, ahora, fin);
+                await EncenderDetalleAsync(d, ahora, fin, ct);
         }
 
         await _db.SaveChangesAsync(ct);
@@ -176,7 +187,9 @@ public class MotorProgramacionService : IMotorProgramacionService
                 .ToList();
 
             foreach (var d in vencidos)
-                ApagarDetalle(d, ahora, EstadoDetalle.Completada);
+                await ApagarDetalleAsync(d, ahora, EstadoDetalle.Completada, ct);
+
+            if (vencidos.Count > 0) _tocadas.Add(corrida.idProgramacion);
 
             // 3b. en secuencial, encender el siguiente
             if (programacion.modoEjecucion != ModoEjecucion.Secuencial) continue;
@@ -191,7 +204,9 @@ public class MotorProgramacionService : IMotorProgramacionService
 
             if (siguiente is null) continue;
 
-            EncenderDetalle(siguiente, ahora, finVentana);
+            await EncenderDetalleAsync(siguiente, ahora, finVentana, ct);
+            _tocadas.Add(corrida.idProgramacion);
+
         }
 
         await _db.SaveChangesAsync(ct);
@@ -228,7 +243,7 @@ public class MotorProgramacionService : IMotorProgramacionService
             if (ventanaCerrada)
             {
                 foreach (var d in activos)
-                    ApagarDetalle(d, ahora, EstadoDetalle.Completada);
+                    await ApagarDetalleAsync(d, ahora, EstadoDetalle.Completada, ct);
 
                 foreach (var d in pendientes)
                     d.estado = EstadoDetalle.Omitida;
@@ -240,6 +255,7 @@ public class MotorProgramacionService : IMotorProgramacionService
 
             corrida.estado = EstadosEjecucion.Completada;
             corrida.finReal = ahora.UtcDateTime;
+            _tocadas.Add(corrida.idProgramacion);
 
             _logger.LogInformation("Corrida cerrada: '{Nombre}' ({Motivo})",
                 programacion.Nombre,
@@ -255,43 +271,67 @@ public class MotorProgramacionService : IMotorProgramacionService
         var sinZona = fecha.ToDateTime(hora);                  // Kind = Unspecified
         return new DateTimeOffset(sinZona, _zona.GetUtcOffset(sinZona));
     }
-    private void EncenderDetalle(EjecucionReleDetalle detalle,
-                                DateTimeOffset ahora,
-                                DateTimeOffset finVentana)
+    private async Task EncenderDetalleAsync(EjecucionReleDetalle detalle,
+                                            DateTimeOffset ahora,
+                                            DateTimeOffset finVentana,
+                                            CancellationToken ct)
     {
         var finPrevisto = ahora.AddMinutes(detalle.duracionMinutos);
-
-        // si no cabe en la ventana, se recorta
         if (finPrevisto > finVentana) finPrevisto = finVentana;
 
         detalle.estado = EstadoDetalle.EnCurso;
         detalle.inicioReal = ahora.UtcDateTime;
         detalle.finPrevisto = finPrevisto.UtcDateTime;
 
+        var tipo = detalle.rele!.tipoRele!.nombreRele;
+
         if (_opciones.ModoSimulacion)
         {
-            _logger.LogInformation("[SIM] ENCENDER relé {Id}, {Min} min, hasta las {Fin}",
-                detalle.idRele, detalle.duracionMinutos, finPrevisto.ToString("HH:mm:ss"));
+            _logger.LogInformation("[SIM] ENCENDER {Tipo}/{Id}, {Min} min, hasta las {Fin}",
+                tipo, detalle.idRele, detalle.duracionMinutos, finPrevisto.ToString("HH:mm:ss"));
             return;
         }
 
-        // Fase 4: aquí va la llamada real a _rele.CambiarEstadoAsync(...)
+        var (exito, mensaje) = await _rele.CambiarEstadoAsync(
+            tipo, detalle.idRele, true, OrigenComando.Programado);
+
+        if (exito)
+            _logger.LogInformation("ENCENDER {Tipo}/{Id}, {Min} min, hasta las {Fin}",
+                tipo, detalle.idRele, detalle.duracionMinutos, finPrevisto.ToString("HH:mm:ss"));
+        else
+            _logger.LogWarning("No se pudo encender {Tipo}/{Id}: {Mensaje}",
+                tipo, detalle.idRele, mensaje);
     }
 
-    private void ApagarDetalle(EjecucionReleDetalle detalle,
-                            DateTimeOffset ahora,
-                            EstadoDetalle estadoFinal)
+    private async Task ApagarDetalleAsync(EjecucionReleDetalle detalle,
+                                        DateTimeOffset ahora,
+                                        EstadoDetalle estadoFinal,
+                                        CancellationToken ct)
     {
         detalle.estado = estadoFinal;
         detalle.finReal = ahora.UtcDateTime;
 
+        var tipo = detalle.rele!.tipoRele!.nombreRele;
+
         if (_opciones.ModoSimulacion)
         {
-            _logger.LogInformation("[SIM] APAGAR relé {Id} ({Motivo})",
-                detalle.idRele, estadoFinal);
+            _logger.LogInformation("[SIM] APAGAR {Tipo}/{Id} ({Motivo})",
+                tipo, detalle.idRele, estadoFinal);
             return;
         }
 
-        // Fase 4: aquí va _rele.CambiarEstadoAsync(tipo, id, false, OrigenComando.Programado)
+        var (exito, mensaje) = await _rele.CambiarEstadoAsync(
+            tipo, detalle.idRele, false, OrigenComando.Programado);
+
+        if (exito)
+            _logger.LogInformation("APAGAR {Tipo}/{Id} ({Motivo})", tipo, detalle.idRele, estadoFinal);
+        else
+            _logger.LogWarning("No se pudo apagar {Tipo}/{Id}: {Mensaje}", tipo, detalle.idRele, mensaje);
+    }
+
+    private async Task NotificarCambiosAsync(CancellationToken ct)
+    {
+        foreach (var idProgramacion in _tocadas)
+            await _hub.Clients.All.SendAsync(HubMethods.EjecucionActualizada, idProgramacion, ct);
     }
 }

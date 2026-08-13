@@ -27,3 +27,28 @@ public record ProgramacionDto(
 public record ProgramacionReleDto(
     int IdRele, string NombreRele, string Tipo, int DuracionMinutos, int Orden
 );
+
+public record CorridaDto(
+    int IdEjecucion,
+    int IdProgramacion,
+    string NombreProgramacion,
+    DateOnly Fecha,
+    string Estado,
+    TimeOnly HoraInicio,
+    TimeOnly HoraFin,
+    DateTime? InicioReal,
+    DateTime? FinReal,
+    List<CorridaReleDto> Detalles
+);
+
+public record CorridaReleDto(
+    int IdRele,
+    string NombreRele,
+    string Tipo,
+    int Orden,
+    int DuracionMinutos,
+    string Estado,
+    DateTime? InicioReal,
+    DateTime? FinPrevisto,
+    DateTime? FinReal
+);

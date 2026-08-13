@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using Serilog;
 
 namespace RanchoMqttApi;
 
@@ -7,16 +9,19 @@ public class ReleService : IReleService
     private readonly IMqttPublisherService _mqttPublisher;
     private readonly DBContext _db;
     private readonly IReleCacheService _cache;
-
     private readonly IComandoTimeoutService _timeoutService;
-
+    private readonly ILogger<ReleService> _logger;
+    private readonly IHubContext<RelesHub> _hub;
     public ReleService(IMqttPublisherService mqttPublisher, DBContext db, 
-        IReleCacheService cache, IComandoTimeoutService timeoutService)
+        IReleCacheService cache, IComandoTimeoutService timeoutService,
+        ILogger<ReleService> logger, IHubContext<RelesHub> hub)
     {
         _mqttPublisher = mqttPublisher;
         _db = db;
         _cache = cache;
         _timeoutService = timeoutService;
+        _logger = logger;
+        _hub = hub;
     }
 
     public async Task<(bool exito, string mensaje)> CambiarEstadoAsync(
@@ -30,8 +35,8 @@ public class ReleService : IReleService
             return (false, $"El relevador '{tipo}/{id}' no existe en el catálogo");
 
         // Fase 5: aquí va la cancelación de la corrida de hoy
-        // if (!estado && origen == OrigenComando.Manual)
-        //     await CancelarDetalleEnCursoAsync(id);
+        if (!estado && origen == OrigenComando.Manual)
+            await CancelarDetalleEnCursoAsync(id);
 
         var topic = MqttTopics.ReleCmd(tipo, id);
         var payload = estado ? "on" : "off";
@@ -68,5 +73,27 @@ public class ReleService : IReleService
                 enCache?.UltimaConfirmacion
             );
         }).ToList();
+    }
+    private async Task CancelarDetalleEnCursoAsync(int idRele)
+    {
+        var detalle = await _db.EjecucionReleDetalles
+            .Include(d => d.ejecucion)
+            .OrderByDescending(d => d.ejecucion!.fecha)
+            .FirstOrDefaultAsync(d => d.idRele == idRele
+                                && d.estado == EstadoDetalle.EnCurso);
+
+        if (detalle is null) return;   // no estaba corriendo por programación, apagado normal
+
+        detalle.estado = EstadoDetalle.CanceladaPorUsuario;
+        detalle.finReal = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+
+        await _hub.Clients.All.SendAsync(
+            HubMethods.EjecucionActualizada, detalle.ejecucion!.idProgramacion);
+
+        _logger.LogInformation(
+            "Relé {Id} cancelado por el usuario; no vuelve a encender hoy (corrida {Corrida})",
+            idRele, detalle.idEjecucion);
     }
 }
