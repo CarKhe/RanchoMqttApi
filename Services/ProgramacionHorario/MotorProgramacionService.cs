@@ -12,13 +12,15 @@ public class MotorProgramacionService : IMotorProgramacionService
     private readonly TimeZoneInfo _zona;
     private readonly IHubContext<RelesHub> _hub;
     private readonly HashSet<int> _tocadas = [];
+    private readonly IReleCacheService _cache;
 
     public MotorProgramacionService(
         DBContext db,
         IReleService rele,
         RiegoOptions opciones,
         ILogger<MotorProgramacionService> logger,
-        IHubContext<RelesHub> hub)
+        IHubContext<RelesHub> hub,
+        IReleCacheService cache)
     {
         _db = db;
         _rele = rele;
@@ -26,6 +28,7 @@ public class MotorProgramacionService : IMotorProgramacionService
         _logger = logger;
         _zona = TimeZoneInfo.FindSystemTimeZoneById(opciones.ZonaHoraria);
         _hub = hub;
+        _cache = cache;
     }
 
     public async Task TickAsync(CancellationToken ct)
@@ -37,6 +40,76 @@ public class MotorProgramacionService : IMotorProgramacionService
         await AvanzarRelesAsync(ahora, ct);
         await CerrarVentanasAsync(ahora, ct);
 
+        await NotificarCambiosAsync(ct);
+    }
+
+    public async Task ReconciliarTrasReinicioAsync(CancellationToken ct)
+    {
+        var ahora = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, _zona);
+        var hoy = DateOnly.FromDateTime(ahora.DateTime);
+
+        var abiertas = await _db.EjecucionesProgramacion
+            .Include(e => e.programacion)
+            .Include(e => e.detalles)
+                .ThenInclude(d => d.rele)
+                    .ThenInclude(r => r!.tipoRele)
+            .Where(e => e.estado == EstadosEjecucion.EnCurso)
+            .ToListAsync(ct);
+
+        if (abiertas.Count == 0)
+        {
+            _logger.LogInformation("Reconciliación: no había corridas abiertas");
+            return;
+        }
+
+        foreach (var corrida in abiertas)
+        {
+            var nombre = corrida.programacion!.Nombre;
+
+            // caso 1: quedó abierta de un día anterior
+            if (corrida.fecha < hoy)
+            {
+                foreach (var d in corrida.detalles.Where(d => d.estado == EstadoDetalle.EnCurso))
+                    await ApagarDetalleAsync(d, ahora, EstadoDetalle.Fallida, ct);
+
+                foreach (var d in corrida.detalles.Where(d => d.estado == EstadoDetalle.Pendiente))
+                    d.estado = EstadoDetalle.Omitida;
+
+                corrida.estado = EstadosEjecucion.Fallida;
+                corrida.finReal = ahora.UtcDateTime;
+                _tocadas.Add(corrida.idProgramacion);
+
+                _logger.LogWarning("Reconciliación: '{Nombre}' del {Fecha} quedó abierta, se cierra como fallida",
+                    nombre, corrida.fecha);
+                continue;
+            }
+
+            // caso 2: es de hoy — comparar contra lo que el ESP32 confirmó
+            foreach (var d in corrida.detalles.Where(d => d.estado == EstadoDetalle.EnCurso))
+            {
+                var tipo = d.rele!.tipoRele!.nombreRele;
+                var enCache = _cache.Obtener(tipo, d.idRele);
+
+                if (enCache is null)
+                {
+                    _logger.LogWarning("Reconciliación: no sé el estado real de {Tipo}/{Id}, lo dejo como está",
+                        tipo, d.idRele);
+                    continue;
+                }
+
+                if (enCache.Estado != "on")
+                {
+                    d.estado = EstadoDetalle.Fallida;
+                    d.finReal = ahora.UtcDateTime;
+                    _tocadas.Add(corrida.idProgramacion);
+
+                    _logger.LogWarning("Reconciliación: el motor creía {Tipo}/{Id} encendido, pero está '{Real}'",
+                        tipo, d.idRele, enCache.Estado);
+                }
+            }
+        }
+
+        await _db.SaveChangesAsync(ct);
         await NotificarCambiosAsync(ct);
     }
 
@@ -70,7 +143,10 @@ public class MotorProgramacionService : IMotorProgramacionService
             {
                 idProgramacion = p.idProgramacion,
                 fecha = hoy,
-                estado = EstadosEjecucion.Pendiente
+                estado = EstadosEjecucion.Pendiente,
+                horaInicio = p.horaInicio,
+                horaFin = p.horaFin,
+                modoEjecucion = p.modoEjecucion
             };
 
             foreach (var pr in p.reles.OrderBy(r => r.orden))
@@ -111,14 +187,14 @@ public class MotorProgramacionService : IMotorProgramacionService
         foreach (var corrida in pendientes)
         {
             var programacion = corrida.programacion!;
-            var inicio = EnLocal(hoy, programacion.horaInicio);
-            var fin = EnLocal(hoy, programacion.horaFin);
+            var inicio = EnLocal(hoy, corrida.horaInicio);
+            var fin = EnLocal(hoy, corrida.horaFin);
 
             // todavía no le toca
             if (ahora < inicio)
             {
                 _logger.LogDebug("'{Nombre}' aún no arranca: son las {Ahora}, empieza {Inicio}",
-                    programacion.Nombre, ahora.ToString("HH:mm:ss"), programacion.horaInicio);
+                    programacion.Nombre, ahora.ToString("HH:mm:ss"), corrida.horaInicio);
                 continue;
             }
 
@@ -133,14 +209,14 @@ public class MotorProgramacionService : IMotorProgramacionService
                     d.estado = EstadoDetalle.Omitida;
 
                 _logger.LogWarning("Ventana perdida: '{Nombre}' cerró a las {Fin}, no se riega",
-                    programacion.Nombre, programacion.horaFin);
+                    programacion.Nombre, corrida.horaFin);
                 continue;
             }
 
             corrida.estado = EstadosEjecucion.EnCurso;
             corrida.inicioReal = ahora.UtcDateTime;
 
-            var aEncender = programacion.modoEjecucion == ModoEjecucion.Simultaneo
+            var aEncender = corrida.modoEjecucion == ModoEjecucion.Simultaneo
                 ? corrida.detalles
                     .Where(d => d.estado == EstadoDetalle.Pendiente)
                     .ToList()
@@ -151,7 +227,7 @@ public class MotorProgramacionService : IMotorProgramacionService
                     .ToList();
 
             _logger.LogInformation("Arrancando '{Nombre}' en modo {Modo}, {N} relé(s)",
-                programacion.Nombre, programacion.modoEjecucion, aEncender.Count);
+                programacion.Nombre, corrida.modoEjecucion, aEncender.Count);
 
             foreach (var d in aEncender)
                 await EncenderDetalleAsync(d, ahora, fin, ct);
@@ -177,7 +253,7 @@ public class MotorProgramacionService : IMotorProgramacionService
         foreach (var corrida in enCurso)
         {
             var programacion = corrida.programacion!;
-            var finVentana = EnLocal(hoy, programacion.horaFin);
+            var finVentana = EnLocal(hoy, corrida.horaFin);
 
             // 3a. apagar los que ya cumplieron su tiempo
             var vencidos = corrida.detalles
@@ -192,7 +268,7 @@ public class MotorProgramacionService : IMotorProgramacionService
             if (vencidos.Count > 0) _tocadas.Add(corrida.idProgramacion);
 
             // 3b. en secuencial, encender el siguiente
-            if (programacion.modoEjecucion != ModoEjecucion.Secuencial) continue;
+            if (corrida.modoEjecucion != ModoEjecucion.Secuencial) continue;
             if (ahora >= finVentana) continue;
 
             if (corrida.detalles.Any(d => d.estado == EstadoDetalle.EnCurso)) continue;
@@ -229,7 +305,7 @@ public class MotorProgramacionService : IMotorProgramacionService
         foreach (var corrida in enCurso)
         {
             var programacion = corrida.programacion!;
-            var ventanaCerrada = ahora >= EnLocal(hoy, programacion.horaFin);
+            var ventanaCerrada = ahora >= EnLocal(hoy, corrida.horaFin);
 
             var activos = corrida.detalles
                 .Where(d => d.estado == EstadoDetalle.EnCurso).ToList();
@@ -250,7 +326,7 @@ public class MotorProgramacionService : IMotorProgramacionService
 
                 if (pendientes.Count > 0)
                     _logger.LogWarning("'{Nombre}': {N} relé(s) sin turno antes de las {Fin}",
-                        programacion.Nombre, pendientes.Count, programacion.horaFin);
+                        programacion.Nombre, pendientes.Count, corrida.horaFin);
             }
 
             corrida.estado = EstadosEjecucion.Completada;

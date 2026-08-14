@@ -3,4 +3,5 @@
 public interface IMotorProgramacionService
 {
     Task TickAsync(CancellationToken ct);
+    Task ReconciliarTrasReinicioAsync(CancellationToken ct);
 }

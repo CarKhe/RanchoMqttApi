@@ -15,6 +15,10 @@ public class EjecucionProgramacion
     public DateOnly fecha { get; set; }
     public EstadosEjecucion estado { get; set; } = EstadosEjecucion.Pendiente;
 
+    public TimeOnly horaInicio { get; set; }
+    public TimeOnly horaFin { get; set; }
+    public ModoEjecucion modoEjecucion { get; set; }
+
     public DateTime? inicioReal { get; set; }
     public DateTime? finReal { get; set; }
 

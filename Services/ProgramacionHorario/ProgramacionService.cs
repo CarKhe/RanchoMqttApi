@@ -197,8 +197,8 @@ public class ProgramacionService : IProgramacionService
             e.programacion!.Nombre,
             e.fecha,
             e.estado.ToString(),
-            e.programacion.horaInicio,
-            e.programacion.horaFin,
+            e.horaInicio,
+            e.horaFin,
             e.inicioReal,
             e.finReal,
             e.detalles.OrderBy(d => d.orden).Select(d => new CorridaReleDto(

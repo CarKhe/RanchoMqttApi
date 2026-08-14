@@ -6,5 +6,6 @@ public enum EstadoDetalle
     EnCurso = 1,
     Completada = 2,
     CanceladaPorUsuario = 3,
-    Omitida = 4
+    Omitida = 4,
+    Fallida = 5
 }

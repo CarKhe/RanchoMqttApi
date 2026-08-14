@@ -96,5 +96,7 @@ public class MqttWorker : BackgroundService
             _reconectando.Release(); // libera el candado para el siguiente intento futuro
         }
     }
+
+
 }
 
