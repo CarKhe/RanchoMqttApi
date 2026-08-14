@@ -15,9 +15,7 @@ public class MqttPublisherService : IMqttPublisherService
         IConfiguration config)
     {
         _client = _factory.CreateMqttClient();
-        _options = new MqttClientOptionsBuilder()
-            .WithTcpServer(config["Mqtt:Host"], config.GetValue<int>("Mqtt:Port"))
-            .Build();
+        _options = MqttOpciones.Construir(config).Build();
         _logger = logger;
         _config = config;
     }

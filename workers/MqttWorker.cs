@@ -25,9 +25,7 @@ public class MqttWorker : BackgroundService
     {
         var mqttClient = _mqttFactory.CreateMqttClient();
 
-        var options = new MqttClientOptionsBuilder()
-            .WithTcpServer(_config["Mqtt:Host"], _config.GetValue<int>("Mqtt:Port"))
-            .Build();
+        var options = MqttOpciones.Construir(_config).Build();
 
         mqttClient.ApplicationMessageReceivedAsync += async e => // ahora async
         {

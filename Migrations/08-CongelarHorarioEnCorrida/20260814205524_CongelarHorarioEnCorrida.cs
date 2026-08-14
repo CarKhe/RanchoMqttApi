@@ -31,6 +31,18 @@ namespace RanchoMqttApi.Migrations._08CongelarHorarioEnCorrida
                 type: "integer",
                 nullable: false,
                 defaultValue: 0);
+
+            // Las corridas que ya existian nacen con 00:00 y modo 0, y el motor
+            // las marcaria como "ventana perdida". Se rellenan desde su regla.
+            // Va al final a proposito: las columnas tienen que existir primero.
+            migrationBuilder.Sql("""
+                UPDATE "EjecucionesProgramacion" e
+                SET "horaInicio" = p."horaInicio",
+                    "horaFin" = p."horaFin",
+                    "modoEjecucion" = p."modoEjecucion"
+                FROM "ProgramacionesRiego" p
+                WHERE e."idProgramacion" = p."idProgramacion";
+                """);
         }
 
         /// <inheritdoc />

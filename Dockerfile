@@ -20,6 +20,11 @@ ENV ASPNETCORE_URLS=http://+:8080 \
     DOTNET_RUNNING_IN_CONTAINER=true \
     TZ=America/Matamoros
 
+# curl para el HEALTHCHECK: la imagen de aspnet no lo trae
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl \
+ && rm -rf /var/lib/apt/lists/*
+
 # Las imagenes de .NET ya traen un usuario sin privilegios (uid 1654, se llama "app").
 # No hace falta crearlo: la imagen base no incluye adduser.
 RUN mkdir -p /app/Logs && chown -R 1654:1654 /app
@@ -28,5 +33,9 @@ COPY --from=build --chown=1654:1654 /app/publish ./
 
 USER 1654
 EXPOSE 8080
+
+# start-period generoso: la API espera a Postgres y reintenta las migraciones
+HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
+  CMD curl -fsS http://localhost:8080/health || exit 1
 
 ENTRYPOINT ["dotnet", "RanchoMqttApi.dll"]
