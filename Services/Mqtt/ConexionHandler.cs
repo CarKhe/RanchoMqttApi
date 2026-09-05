@@ -8,6 +8,7 @@ namespace RanchoMqttApi;
 public class ConexionHandler : IMqttTopicHandler
 {
     private readonly IHubContext<RelesHub> _hubContext;
+    
     private readonly DBContext _db;
     private readonly ILogger<ConexionHandler> _logger;
 
