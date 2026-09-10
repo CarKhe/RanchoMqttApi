@@ -1,44 +1,46 @@
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using RanchoMqttApi;
 
 namespace MyApp.Namespace
 {
     public record LoginRequest(string UserMail, string Password);
-    
+    public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+
     [Route("api/[controller]")]
     [ApiController]
     public class AuthController : ControllerBase
     {
-    private readonly DBContext _db;
-    private readonly IJwtService _jwtService;
+    private readonly IAuthService _authService;
 
-    public AuthController(DBContext db, IJwtService jwtService)
+    public AuthController(IAuthService authService)
     {
-        _db = db;
-        _jwtService = jwtService;
+        _authService = authService;
     }
 
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginRequest request)
     {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.userMail == request.UserMail);
-        if (user is null)
-            return Unauthorized("Credenciales inválidas");
+        var (exito, mensaje, token) = await _authService.LoginAsync(request.UserMail, request.Password);
+        return exito ? Ok(new { token }) : Unauthorized(mensaje);
+    }
 
-        var hasher = new PasswordHasher<Users>();
-        var result = hasher.VerifyHashedPassword(user, user.passwordHash, request.Password);
+    // Endpoint privado (requiere JWT) y oculto de Swagger: solo permite al usuario autenticado
+    // cambiar su propia contraseña, no está pensado para exponerse en la documentación pública.
+    [HttpPost("change-password")]
+    [Authorize]
+    [ApiExplorerSettings(IgnoreApi = true)]
+    public async Task<IActionResult> ChangePassword(ChangePasswordRequest request)
+    {
+        var idUserClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(idUserClaim, out var idUser))
+            return Unauthorized();
 
-        if (result == PasswordVerificationResult.Failed)
-            return Unauthorized("Credenciales inválidas");
+        var (exito, mensaje) = await _authService.ChangePasswordAsync(
+            idUser, request.CurrentPassword, request.NewPassword);
 
-        user.updatedLogin = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
-
-        var token = _jwtService.GenerateToken(user);
-        return Ok(new { token });
+        return exito ? Ok(new { mensaje }) : BadRequest(new { mensaje });
     }
     }
 }

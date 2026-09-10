@@ -50,6 +50,7 @@ builder.Services.AddScoped<IMqttTopicHandler, TemperaturaHandler>();
 builder.Services.AddScoped<IMqttTopicHandler, ConexionHandler>();
 builder.Services.AddScoped<IProgramacionService, ProgramacionService>();
 builder.Services.AddScoped<IMotorProgramacionService,MotorProgramacionService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 
 //JWT: settings + servicio
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>()
